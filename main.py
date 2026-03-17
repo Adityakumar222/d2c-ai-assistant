@@ -41,23 +41,31 @@ Input:
             },
             json={
                 "inputs": prompt
-            }
+            },
+            timeout=30
         )
 
-        # Debug (optional)
-        # print(response.text)
+        # Handle empty response
+        if not response.text or response.text.strip() == "":
+            return {"error": "Empty response from model. Retry."}
 
-        data = response.json()
+        # Try parsing JSON safely
+        try:
+            data = response.json()
+        except:
+            return {"error": "Invalid response from model."}
 
-        # Handle proper output
+        # Handle different cases
         if isinstance(data, list):
             output = data[0].get("generated_text", "")
-        elif "error" in data:
-            output = f"Model error: {data['error']}"
+        elif isinstance(data, dict) and "error" in data:
+            return {"error": data["error"]}
         else:
             output = str(data)
 
         return {"result": output}
 
+    except requests.exceptions.Timeout:
+        return {"error": "Request timeout. Try again."}
     except Exception as e:
         return {"error": str(e)}
