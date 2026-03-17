@@ -1,48 +1,54 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import os
-from openai import OpenAI
-from dotenv import load_dotenv
-
-load_dotenv()
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+import requests
 
 app = FastAPI()
 
+# Request model
 class Request(BaseModel):
     query: str
 
-SYSTEM_PROMPT = """
-You are an expert D2C e-commerce growth consultant.
+# HuggingFace API key
+HF_API_KEY = os.getenv("HF_API_KEY")
 
-Analyze merchant input and give:
-- Pricing suggestions
-- Marketing improvements
-- Profit optimization tips
-
-Return response in this format:
-Pricing:
-Marketing:
-Profit:
-"""
-
+# Home route
 @app.get("/")
 def home():
     return {"message": "D2C AI Assistant Running"}
 
+# Analyze route
 @app.post("/analyze")
 async def analyze(req: Request):
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": req.query}
-            ]
-        )
+    prompt = f"""
+You are a D2C e-commerce expert.
 
-        return {"result": response.choices[0].message.content}
+Give short and clear suggestions in this format:
 
-    except Exception as e:
-        return {"error": str(e)}
+Pricing:
+Marketing:
+Profit:
+
+Input:
+{req.query}
+"""
+
+    response = requests.post(
+        "https://api-inference.huggingface.co/models/google/flan-t5-large",
+        headers={
+            "Authorization": f"Bearer {HF_API_KEY}"
+        },
+        json={
+            "inputs": prompt
+        }
+    )
+
+    result = response.json()
+
+    # Clean output
+    if isinstance(result, list):
+        output = result[0].get("generated_text", "")
+    else:
+        output = str(result)
+
+    return {"result": output}
