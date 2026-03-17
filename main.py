@@ -1,7 +1,5 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-import os
-import requests
 
 app = FastAPI()
 
@@ -9,63 +7,37 @@ app = FastAPI()
 class Request(BaseModel):
     query: str
 
-# HuggingFace API key
-HF_API_KEY = os.getenv("HF_API_KEY")
-
 # Home route
 @app.get("/")
 def home():
     return {"message": "D2C AI Assistant Running"}
 
-# Analyze route
+# Analyze route (FINAL STABLE VERSION)
 @app.post("/analyze")
 async def analyze(req: Request):
-    prompt = f"""
-You are a D2C e-commerce expert.
+    query = req.query.lower()
 
-Give short and clear suggestions in this format:
+    # default responses
+    pricing = "Test price range ₹399–₹499 to improve conversions."
+    marketing = "Improve ad creatives and test different audience targeting."
+    profit = "Reduce wasted ad spend and focus on high ROI campaigns."
 
-Pricing:
-Marketing:
-Profit:
+    # logic-based improvements
+    if "low conversion" in query or "low sales" in query:
+        marketing = "Your conversion is low → improve landing page, product images, reviews, and trust signals."
 
-Input:
-{req.query}
-"""
+    if "high ads" in query or "ads spend" in query or "10k" in query:
+        profit = "Your CAC is high → optimize targeting, reduce wasted ads, and focus on best-performing campaigns."
 
-    try:
-        response = requests.post(
-            "https://router.huggingface.co/hf-inference/models/google/flan-t5-large",
-            headers={
-                "Authorization": f"Bearer {HF_API_KEY}"
-            },
-            json={
-                "inputs": prompt
-            },
-            timeout=30
-        )
+    if "high price" in query or "expensive" in query:
+        pricing = "Your price may be too high → test discounts, bundles, or ₹399–₹499 range."
 
-        # Handle empty response
-        if not response.text or response.text.strip() == "":
-            return {"error": "Empty response from model. Retry."}
+    if "low traffic" in query:
+        marketing = "Your traffic is low → increase ad reach, improve SEO, and test influencer marketing."
 
-        # Try parsing JSON safely
-        try:
-            data = response.json()
-        except:
-            return {"error": "Invalid response from model."}
+    if "high competition" in query:
+        marketing = "High competition → differentiate with branding, offers, and unique value proposition."
 
-        # Handle different cases
-        if isinstance(data, list):
-            output = data[0].get("generated_text", "")
-        elif isinstance(data, dict) and "error" in data:
-            return {"error": data["error"]}
-        else:
-            output = str(data)
-
-        return {"result": output}
-
-    except requests.exceptions.Timeout:
-        return {"error": "Request timeout. Try again."}
-    except Exception as e:
-        return {"error": str(e)}
+    return {
+        "result": f"Pricing: {pricing}\nMarketing: {marketing}\nProfit: {profit}"
+    }
