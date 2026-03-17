@@ -33,22 +33,31 @@ Input:
 {req.query}
 """
 
-    response = requests.post(
-        "https://router.huggingface.co/hf-inference/models/google/flan-t5-large",
-        headers={
-            "Authorization": f"Bearer {HF_API_KEY}"
-        },
-        json={
-            "inputs": prompt
-        }
-    )
+    try:
+        response = requests.post(
+            "https://router.huggingface.co/hf-inference/models/google/flan-t5-large",
+            headers={
+                "Authorization": f"Bearer {HF_API_KEY}"
+            },
+            json={
+                "inputs": prompt
+            }
+        )
 
-    result = response.json()
+        # Debug (optional)
+        # print(response.text)
 
-    # Clean output
-    if isinstance(result, list):
-        output = result[0].get("generated_text", "")
-    else:
-        output = str(result)
+        data = response.json()
 
-    return {"result": output}
+        # Handle proper output
+        if isinstance(data, list):
+            output = data[0].get("generated_text", "")
+        elif "error" in data:
+            output = f"Model error: {data['error']}"
+        else:
+            output = str(data)
+
+        return {"result": output}
+
+    except Exception as e:
+        return {"error": str(e)}
